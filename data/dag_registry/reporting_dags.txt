@@ -1,0 +1,42 @@
+## DAG: report_daily_revenue
+
+Purpose: Aggregates daily revenue from BigQuery, generates PDF report, emails to finance
+Schedule: 0 7 * * * (daily at 07:00 UTC)
+Owner: analytics-team
+Criticality: High — finance team reviews before 09:00 UTC daily
+Tags: reporting, bigquery, email
+
+Tasks:
+- query_revenue_bq: BigQueryOperator pulls revenue aggregates for previous day
+- build_report: PythonOperator uses matplotlib/reportlab to generate PDF
+- email_report: EmailOperator sends PDF to finance distribution list
+
+Common Failures:
+- query_revenue_bq: fails if etl_customer_orders did not complete by 07:00 UTC
+- build_report: OOMKilled if previous day had unusually high transaction volume
+- email_report: SMTP authentication failure if email credentials rotated
+
+Dependencies: requires etl_customer_orders to succeed first
+On Failure: notify #analytics-alerts, directly email analytics-lead@company.com
+
+---
+
+## DAG: report_weekly_inventory
+
+Purpose: Generates weekly inventory health report for supply chain review
+Schedule: 0 8 * * 1 (every Monday at 08:00 UTC)
+Owner: supply-chain-team
+Criticality: Low
+Tags: reporting, postgres, email
+
+Tasks:
+- query_inventory: PostgresOperator aggregates inventory.current_levels
+- build_excel_report: PythonOperator generates Excel file using openpyxl
+- upload_to_s3: PythonOperator uploads report to S3 reports bucket
+- notify_team: SlackOperator posts report link to #supply-chain channel
+
+Common Failures:
+- upload_to_s3: AWS credentials expired or S3 bucket policy changed
+- notify_team: Slack token revoked
+
+On Failure: notify #supply-chain-alerts

@@ -1,0 +1,40 @@
+## Error: ModuleNotFoundError in PythonOperator
+
+Pattern: ModuleNotFoundError: No module named 'xxx'
+Operator: PythonOperator
+Root Cause: Python dependency not installed in Airflow worker environment.
+            Often happens after new library added to DAG but not to requirements.txt
+Fix:
+- Add missing module to requirements.txt in your Airflow deployment
+- Rebuild and redeploy Airflow worker image
+- If using KubernetesExecutor, check pod_override image has the dependency
+Severity: Medium
+Example Log: [2024-11-01 09:12:33] ERROR - Failed to import. ModuleNotFoundError: No module named 'pandas'
+
+---
+
+## Error: TypeError in PythonOperator
+
+Pattern: TypeError: xxx() got an unexpected keyword argument 'yyy'
+Operator: PythonOperator
+Root Cause: Function signature mismatch. Often caused by XCom arguments
+            or op_kwargs not matching the Python callable's parameters.
+Fix:
+- Check op_kwargs keys match the callable's parameter names exactly
+- Check provide_context=True is set if function expects context
+- Verify XCom keys match what upstream tasks push
+Severity: Low
+
+---
+
+## Error: Timeout in PythonOperator
+
+Pattern: AirflowTaskTimeout: Timeout, Task exceeded timeout
+Operator: PythonOperator
+Root Cause: Task took longer than execution_timeout set in the DAG.
+            Common in heavy data processing or slow external API calls.
+Fix:
+- Increase execution_timeout in task definition
+- Optimize the Python function (add pagination, batching)
+- Check if external API or DB is running slow
+Severity: Medium

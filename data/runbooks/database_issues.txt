@@ -1,0 +1,45 @@
+## Runbook: PostgreSQL Connection Issues
+
+Symptoms:
+- Tasks fail with OperationalError or ConnectionResetError
+- Multiple DAGs failing simultaneously on DB-related tasks
+
+Step 1 - Check DB pod health:
+  kubectl get pods -n <db-namespace>
+  kubectl logs <postgres-pod> -n <db-namespace> --tail=50
+
+Step 2 - Check active connections:
+  SELECT count(*), state FROM pg_stat_activity GROUP BY state;
+  If max connections hit: SELECT * FROM pg_settings WHERE name='max_connections';
+
+Step 3 - Check Airflow connection config:
+  Airflow UI > Admin > Connections > find your postgres connection
+  Verify host, port, schema, login are correct
+
+Step 4 - Restart connection pool if using PgBouncer:
+  kubectl rollout restart deployment pgbouncer -n <namespace>
+
+Step 5 - If DB is down, wait for pod to recover then retry failed tasks:
+  Airflow UI > DAG > failed run > Clear failed tasks
+
+---
+
+## Runbook: BigQuery Quota Exceeded
+
+Symptoms:
+- Tasks fail with google.api_core.exceptions.ResourceExhausted
+- Error mentions 429 or quota
+
+Step 1 - Check which quota is hit (streaming vs batch):
+  Look for "streaming inserts" or "load jobs" in error log
+
+Step 2 - For streaming quota:
+  Switch task to use batch load job instead of streaming insert
+  Or implement exponential backoff retry in the task
+
+Step 3 - For load job quota:
+  Check how many load jobs ran today: GCP Console > BigQuery > Job History
+  Space out DAG schedules to reduce concurrent load jobs
+
+Step 4 - Request quota increase:
+  GCP Console > IAM > Quotas > BigQuery > Request Increase

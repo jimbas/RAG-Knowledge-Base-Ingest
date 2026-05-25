@@ -1,0 +1,39 @@
+## Error: OOMKilled
+
+Pattern: Task fails with exit code 137, pod status OOMKilled
+Operator: Any (KubernetesExecutor)
+Root Cause: Worker pod exceeded memory limit. Common with large dataset
+            processing or heavy Python libraries like pandas/numpy.
+Fix:
+- Find the task's pod_override in DAG code, increase memory limit
+- Example override: {"limits": {"memory": "2Gi"}}
+- If no override, increase default worker memory in Airflow Helm values.yaml
+- Verify: kubectl describe pod <worker-pod> -n airflow | grep -A5 Limits
+Severity: High
+
+---
+
+## Error: ImagePullBackOff
+
+Pattern: Pod stuck in ImagePullBackOff or ErrImagePull
+Operator: Any (KubernetesExecutor)
+Root Cause: Worker pod cannot pull the Docker image. Either wrong image tag,
+            registry credentials expired, or registry unreachable.
+Fix:
+- Check image name and tag in Airflow Helm values or pod_override
+- Verify imagePullSecret is valid: kubectl get secret <secret> -n airflow
+- Try pulling image manually on a node to confirm
+Severity: Critical
+
+---
+
+## Error: Pod Evicted
+
+Pattern: Task fails, pod status Evicted
+Operator: Any (KubernetesExecutor)
+Root Cause: K8s node ran out of disk or memory, pod was evicted.
+Fix:
+- Check node pressure: kubectl describe node <node-name> | grep -A5 Conditions
+- Free up disk space or add node capacity
+- Consider adding resource requests so scheduler places pods on healthy nodes
+Severity: High

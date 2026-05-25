@@ -1,0 +1,41 @@
+## DAG: etl_customer_orders
+
+Purpose: Pulls customer orders from PostgreSQL, transforms, loads to BigQuery
+Schedule: 0 2 * * * (daily at 02:00 UTC)
+Owner: data-engineering
+Criticality: High — feeds daily revenue dashboard
+Tags: etl, postgres, bigquery, orders
+
+Tasks:
+- extract_orders: queries orders table for last 24h window using PostgresOperator
+- validate_schema: PythonOperator checks column types, nulls, row count threshold
+- transform_orders: PythonOperator applies business rules, currency conversion
+- load_to_bq: loads transformed data to BigQuery analytics.orders table
+
+Common Failures:
+- extract_orders: DB connection timeout during peak hours (02:00-03:00 UTC)
+- validate_schema: fails when row count drops below threshold (possible upstream issue)
+- load_to_bq: BigQuery quota exceeded on month-end (high volume)
+
+On Failure: notify #data-eng-alerts, page on-call if Criticality=High after 06:00 UTC
+
+---
+
+## DAG: etl_inventory_sync
+
+Purpose: Syncs inventory levels from warehouse API to internal PostgreSQL
+Schedule: 0 */4 * * * (every 4 hours)
+Owner: supply-chain-team
+Criticality: Medium
+Tags: etl, api, postgres, inventory
+
+Tasks:
+- fetch_inventory_api: calls warehouse REST API with requests, paginates results
+- upsert_inventory: PostgresOperator upserts into inventory.current_levels table
+- notify_low_stock: PythonOperator sends Slack alert if any SKU below threshold
+
+Common Failures:
+- fetch_inventory_api: warehouse API rate limiting (HTTP 429), or API downtime
+- upsert_inventory: unique constraint violation when duplicate records returned by API
+
+On Failure: notify #supply-chain-alerts

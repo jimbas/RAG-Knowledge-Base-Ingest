@@ -1,0 +1,40 @@
+## Error: OperationalError - Connection Refused
+
+Pattern: psycopg2.OperationalError: could not connect to server: Connection refused
+Operator: PostgresOperator, PythonOperator with psycopg2
+Root Cause: PostgreSQL pod is down or restarting. Can also be wrong host/port
+            in Airflow connection config.
+Fix:
+- Check PostgreSQL pod status: kubectl get pods -n <namespace>
+- Verify Airflow connection config in UI: Admin > Connections
+- Check DB pod logs: kubectl logs <postgres-pod> -n <namespace>
+- Retry task after DB recovers
+Severity: High
+
+---
+
+## Error: OperationalError - Connection Reset
+
+Pattern: ConnectionResetError: [Errno 104] Connection reset by peer
+Operator: PostgresOperator
+Root Cause: Connection pool exhausted or DB restarted mid-task.
+            High concurrency DAGs often hit this.
+Fix:
+- Check DB max_connections setting
+- Reduce DAG parallelism or add connection pooling (PgBouncer)
+- Increase pool_size in Airflow connection config
+Severity: High
+
+---
+
+## Error: ProgrammingError - Relation Does Not Exist
+
+Pattern: psycopg2.errors.UndefinedTable: relation "xxx" does not exist
+Operator: PostgresOperator
+Root Cause: Table missing in target schema. Either migration not run
+            or wrong schema in connection config.
+Fix:
+- Verify table exists: SELECT * FROM information_schema.tables WHERE table_name='xxx'
+- Run pending migrations
+- Check search_path in Airflow Postgres connection config
+Severity: Medium

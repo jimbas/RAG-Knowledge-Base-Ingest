@@ -1,0 +1,31 @@
+## Incident: 2025-01-15 — etl_customer_orders failed
+
+Failed Task: load_to_bq
+Error: google.api_core.exceptions.ResourceExhausted: 429 Quota exceeded for streaming inserts
+Root Cause: Month-end spike caused 3x normal row volume, hit BigQuery streaming quota
+Resolution: Switched load_to_bq task from streaming insert to batch load job
+Prevention: Added row_count check task before load, schedules batch job when count > 500k
+Status: Resolved
+
+---
+
+## Incident: 2025-02-03 — etl_inventory_sync failed
+
+Failed Task: fetch_inventory_api
+Error: requests.exceptions.HTTPError: 429 Client Error: Too Many Requests
+Root Cause: Warehouse API rate limit hit, DAG was running every 1 hour during testing
+Resolution: Reverted schedule back to every 4 hours, added exponential backoff in task
+Prevention: Added retry_delay=timedelta(minutes=5), retries=3 in task definition
+Status: Resolved
+
+---
+
+## Incident: 2025-02-20 — report_daily_revenue failed
+
+Failed Task: build_report
+Error: Task failed with exit code 137
+Root Cause: OOMKilled — February month-end report had 10x normal transaction rows,
+            pandas DataFrame exceeded 512Mi memory limit on worker pod
+Resolution: Added pod_override with memory limit 2Gi for build_report task
+Prevention: Added data sampling for report previews, full data only for final render
+Status: Resolved

@@ -1,0 +1,51 @@
+## Runbook: Airflow Worker OOMKilled
+
+Symptoms:
+- Task exits with code 137
+- kubectl describe pod shows OOMKilled under Last State
+
+Step 1 - Identify the task pod:
+  kubectl get pods -n airflow | grep <dag_id>
+
+Step 2 - Check memory usage before kill:
+  kubectl describe pod <pod-name> -n airflow | grep -A10 "Last State"
+
+Step 3 - Increase memory in DAG pod_override:
+  executor_config={
+      "pod_override": k8s.V1Pod(
+          spec=k8s.V1PodSpec(
+              containers=[
+                  k8s.V1Container(
+                      name="base",
+                      resources=k8s.V1ResourceRequirements(
+                          limits={"memory": "2Gi"},
+                          requests={"memory": "1Gi"}
+                      )
+                  )
+              ]
+          )
+      )
+  }
+
+Step 4 - Redeploy DAG and retry the failed run
+
+---
+
+## Runbook: Scheduler Not Triggering DAGs
+
+Symptoms:
+- DAGs not running despite being enabled and past schedule
+- No new DAG runs appearing
+
+Step 1 - Check scheduler pod:
+  kubectl get pods -n airflow | grep scheduler
+  kubectl logs <scheduler-pod> -n airflow --tail=100
+
+Step 2 - Check if scheduler is deadlocked:
+  kubectl exec -it <scheduler-pod> -n airflow -- airflow jobs check
+
+Step 3 - Restart scheduler:
+  kubectl rollout restart deployment airflow-scheduler -n airflow
+
+Step 4 - Verify DAG file has no syntax errors:
+  kubectl exec -it <scheduler-pod> -n airflow -- airflow dags list-import-errors

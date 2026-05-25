@@ -1,0 +1,32 @@
+## Error: Trino JDBC Connection Failed
+
+Pattern: JDBC_ERROR, "The connection attempt failed", type: EXTERNAL
+Operator: PythonOperator, custom Trino operator
+Root Cause: Trino coordinator is unreachable. Can be caused by:
+            - Trino pod down or restarting in K8s
+            - Wrong host/port in Airflow Trino connection config
+            - Network policy blocking connection between pods
+            - Trino coordinator overloaded and rejecting connections
+Fix:
+- Check Trino coordinator pod: kubectl get pods -n trino
+- Check Trino coordinator logs: kubectl logs <trino-coordinator-pod> -n trino
+- Verify Airflow connection config: Admin > Connections > trino_default
+- Check host, port (default 8080), catalog, schema settings
+- If Trino is healthy, check K8s NetworkPolicy allows traffic
+Severity: High
+Tags: trino, jdbc, connection, external
+
+---
+
+## Error: Trino Query Timeout
+
+Pattern: JDBC_ERROR, query_id present, connection timeout
+Operator: PythonOperator with trino-python-client or PyHive
+Root Cause: Query exceeded execution time limit or Trino cluster overloaded
+Fix:
+- Check query_id in Trino UI to see actual query status
+- Increase query timeout in connection settings
+- Check Trino worker resource usage
+- Consider query optimization — add partitioning or reduce scan range
+Severity: Medium
+Tags: trino, jdbc, timeout, query
